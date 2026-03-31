@@ -1,0 +1,20 @@
+{
+  "name": "cosmosdb-connection",
+  "version": "1.0.0",
+  "description": "Azure Function App that exposes an HTTP endpoint to query a Cosmos DB users collection",
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start",
+    "test": "jest --forceExit"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.2.0",
+    "@azure/functions": "^4.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
