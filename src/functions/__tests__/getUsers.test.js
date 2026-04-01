@@ -1,9 +1,9 @@
-jest.mock("@azure/cosmos");
+jest.mock("mongodb");
 jest.mock("@azure/functions", () => ({
   app: { http: jest.fn() },
 }));
 
-const { CosmosClient } = require("@azure/cosmos");
+const { MongoClient } = require("mongodb");
 const { app } = require("@azure/functions");
 
 // Capture the registered name and config when the module is loaded.
@@ -20,32 +20,31 @@ app.http.mockImplementation((name, config) => {
 // Load the function module so app.http() is called and handler is captured.
 require("../getUsers");
 
-describe("getUsers function", () => {
-  let mockFetchAll;
-  let mockQuery;
-  let mockContainer;
-  let mockDatabase;
+describe("getUsers function (MongoDB)", () => {
+  let mockToArray;
+  let mockFind;
+  let mockCollection;
+  let mockDb;
   let mockClient;
 
   beforeEach(() => {
-    mockFetchAll = jest.fn();
-    mockQuery = jest.fn().mockReturnValue({ fetchAll: mockFetchAll });
-    mockContainer = { items: { query: mockQuery } };
-    mockDatabase = { container: jest.fn().mockReturnValue(mockContainer) };
-    mockClient = { database: jest.fn().mockReturnValue(mockDatabase) };
+    mockToArray = jest.fn();
+    mockFind = jest.fn().mockReturnValue({ toArray: mockToArray });
+    mockCollection = { find: mockFind };
+    mockDb = { collection: jest.fn().mockReturnValue(mockCollection) };
+    mockClient = { connect: jest.fn(), db: jest.fn().mockReturnValue(mockDb), close: jest.fn() };
 
-    CosmosClient.mockImplementation(() => mockClient);
+    MongoClient.mockImplementation(() => mockClient);
 
-    process.env.COSMOS_CONNECTION_STRING =
-      "AccountEndpoint=https://test.documents.azure.com:443/;AccountKey=dGVzdA==;";
-    process.env.COSMOS_DATABASE_ID = "testdb";
-    process.env.COSMOS_CONTAINER_ID = "users";
+    process.env.MONGODB_URI = "mongodb://localhost:27017";
+    process.env.MONGODB_DB = "testdb";
+    process.env.MONGODB_COLLECTION = "users";
   });
 
   afterEach(() => {
-    delete process.env.COSMOS_CONNECTION_STRING;
-    delete process.env.COSMOS_DATABASE_ID;
-    delete process.env.COSMOS_CONTAINER_ID;
+    delete process.env.MONGODB_URI;
+    delete process.env.MONGODB_DB;
+    delete process.env.MONGODB_COLLECTION;
   });
 
   const makeContext = () => ({ log: jest.fn() });
@@ -55,45 +54,44 @@ describe("getUsers function", () => {
     expect(registeredConfig).toMatchObject({ methods: ["GET"], authLevel: "function" });
   });
 
-  it("returns users from Cosmos DB on success", async () => {
+  it("returns users from MongoDB on success", async () => {
     const fakeUsers = [
-      { id: "1", name: "Alice" },
-      { id: "2", name: "Bob" },
+      { _id: "1", name: "Alice" },
+      { _id: "2", name: "Bob" },
     ];
-    mockFetchAll.mockResolvedValue({ resources: fakeUsers });
+    mockToArray.mockResolvedValue(fakeUsers);
 
     const response = await handler({}, makeContext());
 
-    expect(CosmosClient).toHaveBeenCalledWith(
-      "AccountEndpoint=https://test.documents.azure.com:443/;AccountKey=dGVzdA==;"
-    );
-    expect(mockClient.database).toHaveBeenCalledWith("testdb");
-    expect(mockDatabase.container).toHaveBeenCalledWith("users");
-    expect(mockQuery).toHaveBeenCalledWith({ query: "SELECT * FROM c" });
+    expect(MongoClient).toHaveBeenCalledWith("mongodb://localhost:27017");
+    expect(mockClient.connect).toHaveBeenCalled();
+    expect(mockClient.db).toHaveBeenCalledWith("testdb");
+    expect(mockDb.collection).toHaveBeenCalledWith("users");
+    expect(mockFind).toHaveBeenCalledWith({});
     expect(response.status).toBe(200);
     expect(response.jsonBody).toEqual({ users: fakeUsers });
   });
 
-  it("defaults container ID to 'users' when env var is not set", async () => {
-    delete process.env.COSMOS_CONTAINER_ID;
-    mockFetchAll.mockResolvedValue({ resources: [] });
+  it("defaults collection to 'users' when env var is not set", async () => {
+    delete process.env.MONGODB_COLLECTION;
+    mockToArray.mockResolvedValue([]);
 
     await handler({}, makeContext());
 
-    expect(mockDatabase.container).toHaveBeenCalledWith("users");
+    expect(mockDb.collection).toHaveBeenCalledWith("users");
   });
 
-  it("returns 500 when COSMOS_DATABASE_ID is not set", async () => {
-    delete process.env.COSMOS_DATABASE_ID;
+  it("returns 500 when MONGODB_DB is not set", async () => {
+    delete process.env.MONGODB_DB;
 
     const response = await handler({}, makeContext());
 
     expect(response.status).toBe(500);
-    expect(response.jsonBody.error).toMatch(/COSMOS_DATABASE_ID/);
+    expect(response.jsonBody.error).toMatch(/MONGODB_DB/);
   });
 
-  it("returns 500 when Cosmos DB query fails", async () => {
-    mockFetchAll.mockRejectedValue(new Error("Connection refused"));
+  it("returns 500 when MongoDB query fails", async () => {
+    mockToArray.mockRejectedValue(new Error("Connection refused"));
 
     const response = await handler({}, makeContext());
 
@@ -102,12 +100,12 @@ describe("getUsers function", () => {
     expect(response.jsonBody.details).toBe("Connection refused");
   });
 
-  it("returns 500 when COSMOS_CONNECTION_STRING is not set", async () => {
-    delete process.env.COSMOS_CONNECTION_STRING;
+  it("returns 500 when MONGODB_URI is not set", async () => {
+    delete process.env.MONGODB_URI;
 
     const response = await handler({}, makeContext());
 
     expect(response.status).toBe(500);
-    expect(response.jsonBody.error).toMatch(/COSMOS_CONNECTION_STRING/);
+    expect(response.jsonBody.error).toMatch(/MONGODB_URI/);
   });
 });

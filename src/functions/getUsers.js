@@ -1,5 +1,5 @@
 const { app } = require("@azure/functions");
-const { CosmosClient } = require("@azure/cosmos");
+const { MongoClient } = require("mongodb");
 
 app.http("getUsers", {
   methods: ["GET"],
@@ -7,44 +7,51 @@ app.http("getUsers", {
   handler: async (request, context) => {
     context.log("getUsers HTTP trigger invoked");
 
-    const connectionString = process.env.COSMOS_CONNECTION_STRING;
-    if (!connectionString) {
+    const uri = process.env.MONGODB_URI;
+    context.log("Using MongoDB URI:", uri);
+    if (!uri) {
       return {
         status: 500,
-        jsonBody: { error: "COSMOS_CONNECTION_STRING environment variable is not set" },
+        jsonBody: { error: "MONGODB_URI environment variable is not set" },
       };
     }
 
-    const databaseId = process.env.COSMOS_DATABASE_ID;
-    if (!databaseId) {
+    const dbName = process.env.MONGODB_DB;
+    if (!dbName) {
       return {
         status: 500,
-        jsonBody: { error: "COSMOS_DATABASE_ID environment variable is not set" },
+        jsonBody: { error: "MONGODB_DB environment variable is not set" },
       };
     }
 
-    const containerId = process.env.COSMOS_CONTAINER_ID || "users";
+    const collectionName = process.env.MONGODB_COLLECTION || "users";
 
+    let client;
     try {
-      const client = new CosmosClient(connectionString);
-      const { resources: users } = await client
-        .database(databaseId)
-        .container(containerId)
-        .items.query({ query: "SELECT * FROM c" })
-        .fetchAll();
+      client = new MongoClient(uri);
+      await client.connect();
 
-      context.log(`Retrieved ${users.length} user(s) from '${containerId}'`);
+      const collection = client.db(dbName).collection(collectionName);
+      const users = await collection.find({}).toArray();
+
+      context.log(`Retrieved ${users.length} user(s) from '${collectionName}'`);
 
       return {
         status: 200,
         jsonBody: { users },
       };
     } catch (error) {
-      context.log("Error querying Cosmos DB:", error.message);
+      context.log("Error querying MongoDB:", error.message);
       return {
         status: 500,
         jsonBody: { error: "Failed to retrieve users", details: error.message },
       };
+    } finally {
+      try {
+        if (client) await client.close();
+      } catch (e) {
+        context.log("Error closing MongoDB client:", e.message);
+      }
     }
   },
 });
