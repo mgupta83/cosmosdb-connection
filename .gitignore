@@ -1,3 +1,6 @@
+# Azure Functions local settings (may contain secrets)
+local.settings.json
+
 # Logs
 logs
 *.log
@@ -137,3 +140,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+local.settings.json
+.DS_Store
