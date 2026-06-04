@@ -1,9 +1,9 @@
-var varLocation = 'northcentralus'
+var varLocation = 'westus3'
 var varEnvironment = 'npr'
 var varApplicationPrefix = 'pwy'
 
-module virtualNetworkModule './virtual-network-subnet/main.bicep' = {
-  name: 'virtualNetworkModule-${varLocation}-${varEnvironment}'
+module virtualNetworkSubnetModule './virtual-network-subnet/main.bicep' = {
+  name: 'virtualNetworkSubnetModule-${varLocation}-${varEnvironment}'
   params: {
     paramApplicationPrefix: varApplicationPrefix
     paramLocation: varLocation

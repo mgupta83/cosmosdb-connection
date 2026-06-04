@@ -1,4 +1,4 @@
-var varLocation =  'northcentralus'
+var varLocation = 'westus3'
 var varEnvironment = 'npr'
 
 module virtualNetworkModule './virtual-network/main.bicep' = {
@@ -7,7 +7,7 @@ module virtualNetworkModule './virtual-network/main.bicep' = {
     paramLocation: varLocation
     paramEnvironment: varEnvironment
     paramAddressSpaces: [
-        '10.1.0.0/16'
-      ]
+      '10.1.0.0/16'
+    ]
   }
 }
