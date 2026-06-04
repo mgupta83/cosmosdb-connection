@@ -127,3 +127,6 @@ Use **Option 2** when simplicity and speed outweigh strict isolation requirement
   - Subnets per Virtual Network = 3000
 
 - [Azure Pricing](https://azure.microsoft.com/en-us/pricing/details/virtual-network/)
+
+## References
+- [How subnetting works](https://medium.com/@lahin31/how-subnetting-works-breaking-down-the-10-0-0-0-24-network-8d9277fba821)
